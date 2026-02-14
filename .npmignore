@@ -1,0 +1,46 @@
+# Dependency files
+node_modules/
+package-lock.json
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build directories
+out/
+dist/
+build/
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Config files
+.env
+.env.*
+!.env.example
+electron-builder.yml
+electron.vite.config.ts
+eslint.config.mjs
+postcss.config.js
+tailwind.config.js
+tsconfig*.json
+vite.config.server.ts
+vitest.config*.ts
+
+# Scripts and tools
+scripts/
+patches/
+.husky/
+.github/
+
+# Documentation and meta
+AGENTS.md
+CHANGELOG.md
+docs-site/
+llms.txt
+repomix.config.json
+
+# Source code (if we only want to publish built artifacts, but usually Electron apps aren't published to npm)
+# src/

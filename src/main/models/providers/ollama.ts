@@ -69,7 +69,7 @@ export const getOllamaAiderMapping = (provider: ProviderProfile, modelId: string
   }
 
   return {
-    modelName: `ollama_chat/${modelId}`,
+    modelName: `ollama/${modelId}`,
     environmentVariables: envVars,
   };
 };
