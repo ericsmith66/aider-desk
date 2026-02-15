@@ -68,6 +68,11 @@ export class ProjectManager {
     return project;
   }
 
+  public async deleteTask(baseDir: string, taskId: string) {
+    const project = this.getProject(baseDir);
+    await project.deleteTask(taskId);
+  }
+
   public async startProject(baseDir: string) {
     logger.info('Starting project', { baseDir });
     const project = this.getProject(baseDir);

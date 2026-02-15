@@ -85,6 +85,11 @@ const main = async (): Promise<void> => {
   };
 
   try {
+    const args = process.argv.slice(2);
+    const removeTaskIndex = args.findLastIndex((arg) => arg === '-remove-task' || arg === '--remove-task');
+    const removeTaskPath =
+      process.env.AIDER_DESK_REMOVE_TASK_PROJECT || (removeTaskIndex !== -1 && args.length > removeTaskIndex + 1 ? args[removeTaskIndex + 1] : null);
+
     await performStartUp(updateProgress);
     logger.info('Startup complete');
 
@@ -92,7 +97,41 @@ const main = async (): Promise<void> => {
     await store.init(AIDER_DESK_DATA_DIR);
 
     // Initialize managers first
-    const { modelManager, agentProfileManager } = await initManagers(store);
+    const { modelManager, agentProfileManager, projectManager, cleanup } = await initManagers(store);
+
+    if (removeTaskPath) {
+      const { join } = await import('path');
+      const { existsSync, statSync } = await import('fs');
+      const absoluteProjectDir = join(process.cwd(), removeTaskPath);
+
+      if (existsSync(absoluteProjectDir) && statSync(absoluteProjectDir).isDirectory()) {
+        logger.info(`Requested to remove tasks from project: ${absoluteProjectDir}`);
+
+        const project = projectManager.getProject(absoluteProjectDir);
+        const tasks = await project.getTasks();
+
+        if (tasks.length > 0) {
+          logger.info(`Deleting ${tasks.length} tasks from project ${absoluteProjectDir}`);
+          for (const task of tasks) {
+            logger.info(`Deleting task ${task.id}`);
+            try {
+              await project.deleteTask(task.id);
+            } catch (e) {
+              logger.error(`Failed to delete task ${task.id}: ${e}`);
+            }
+          }
+        } else {
+          logger.info('No tasks found to delete.');
+        }
+
+        await cleanup();
+        process.exit(0);
+      } else {
+        logger.error(`Project directory not found: ${absoluteProjectDir}`);
+        await cleanup();
+        process.exit(1);
+      }
+    }
 
     // Check for AIDER_DESK_PROJECTS environment variable and add projects
     await addProjectsFromEnv(store, modelManager, agentProfileManager);

@@ -27,6 +27,7 @@ export interface ManagersResult {
   cleanup: () => Promise<void>;
   modelManager: ModelManager;
   agentProfileManager: AgentProfileManager;
+  projectManager: ProjectManager;
 }
 
 export const initManagers = async (store: Store, mainWindow: BrowserWindow | null = null): Promise<ManagersResult> => {
@@ -168,5 +169,6 @@ export const initManagers = async (store: Store, mainWindow: BrowserWindow | nul
     cleanup,
     modelManager,
     agentProfileManager,
+    projectManager,
   };
 };

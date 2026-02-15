@@ -31,3 +31,4 @@ start-docker.sh
 repomix-output.txt
 .eslintcache
 ai-docs
+/knowledge_base/ignore/
