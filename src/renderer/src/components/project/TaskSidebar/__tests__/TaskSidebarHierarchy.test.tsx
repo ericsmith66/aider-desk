@@ -31,21 +31,6 @@ vi.mock('@/stores/taskStore', () => ({
   },
 }));
 
-// Mock localStorage
-const localStorageMock = (() => {
-  let store: Record<string, string> = {};
-  return {
-    getItem: (key: string) => store[key] || null,
-    setItem: (key: string, value: string) => {
-      store[key] = value.toString();
-    },
-    clear: () => {
-      store = {};
-    },
-  };
-})();
-Object.defineProperty(window, 'localStorage', { value: localStorageMock });
-
 describe('TaskSidebar Hierarchy', () => {
   const mockTasks = [
     { id: 'parent-1', name: 'Parent 1', updatedAt: '2023-01-01T00:00:00Z', parentId: null },
