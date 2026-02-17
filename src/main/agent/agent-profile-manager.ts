@@ -32,7 +32,7 @@ const getRuleFilesForAgent = async (agentDirName: string, agentsDir: string): Pr
     const entries = await fs.readdir(rulesDir, { withFileTypes: true });
 
     for (const entry of entries) {
-      if (entry.isFile() && entry.name.endsWith('.md')) {
+      if ((entry.isFile() || entry.isSymbolicLink()) && entry.name.endsWith('.md')) {
         ruleFiles.push(path.join(rulesDir, entry.name));
       }
     }
@@ -87,10 +87,10 @@ export class AgentProfileManager {
     const projectAgentsDir = getProjectAgentsDir(projectDir);
 
     // Load project-specific profiles
-    await this.loadProfilesFromDirectory(projectAgentsDir);
+    await this.loadProfilesFromDirectory(projectAgentsDir, projectDir);
 
     // Setup file watcher for project directory
-    await this.setupWatcherForDirectory(projectAgentsDir);
+    await this.setupWatcherForDirectory(projectAgentsDir, projectDir);
 
     this.notifyListeners();
   }
@@ -192,7 +192,7 @@ export class AgentProfileManager {
     await this.setupWatcherForDirectory(globalAgentsDir);
   }
 
-  private async setupWatcherForDirectory(agentsDir: string): Promise<void> {
+  private async setupWatcherForDirectory(agentsDir: string, projectDir?: string): Promise<void> {
     // Create directory if it doesn't exist
     const dirExists = await fs
       .access(agentsDir)
@@ -230,7 +230,7 @@ export class AgentProfileManager {
       ignoreInitial: true,
     });
 
-    const reloadFunction = () => this.debounceReloadProfiles(agentsDir);
+    const reloadFunction = () => this.debounceReloadProfiles(agentsDir, projectDir);
 
     watcher
       .on('add', async () => {
@@ -265,25 +265,25 @@ export class AgentProfileManager {
     this.directoryWatchers.set(`${agentsDir}-rules`, rulesWatcher);
   }
 
-  private debounceReloadProfiles = debounce(async (agentsDir: string) => {
-    await this.reloadProfiles(agentsDir);
+  private debounceReloadProfiles = debounce(async (agentsDir: string, projectDir?: string) => {
+    await this.reloadProfiles(agentsDir, projectDir);
   }, 1000);
 
-  private async reloadProfiles(agentsDir: string): Promise<void> {
+  private async reloadProfiles(agentsDir: string, projectDir?: string): Promise<void> {
     logger.info(`Reloading agent profiles from ${agentsDir}`);
 
     // Clear existing profiles from this directory
     const profilesToRemove: string[] = [];
-    for (const [profileId, context] of this.profiles.entries()) {
+    for (const [internalId, context] of this.profiles.entries()) {
       if (getAgentsDirForProfile(context.agentProfile) === agentsDir) {
-        profilesToRemove.push(profileId);
+        profilesToRemove.push(internalId);
       }
     }
 
-    profilesToRemove.forEach((profileId) => this.profiles.delete(profileId));
+    profilesToRemove.forEach((internalId) => this.profiles.delete(internalId));
 
     // Reload profiles from directory
-    await this.loadProfilesFromDirectory(agentsDir);
+    await this.loadProfilesFromDirectory(agentsDir, projectDir);
 
     // Notify listeners
     this.notifyListeners();
@@ -295,7 +295,7 @@ export class AgentProfileManager {
     try {
       const entries = await fs.readdir(agentsDir, { withFileTypes: true });
       for (const entry of entries) {
-        if (entry.isDirectory()) {
+        if (entry.isDirectory() || entry.isSymbolicLink()) {
           dirNames.add(entry.name);
         }
       }
@@ -312,7 +312,7 @@ export class AgentProfileManager {
 
       // Check if there are any directories (profiles)
       for (const entry of entries) {
-        if (entry.isDirectory()) {
+        if (entry.isDirectory() || entry.isSymbolicLink()) {
           return false; // Found at least one profile directory
         }
       }
@@ -324,7 +324,11 @@ export class AgentProfileManager {
     }
   }
 
-  private async loadProfilesFromDirectory(agentsDir: string): Promise<void> {
+  private getInternalId(profileId: string, projectDir?: string): string {
+    return projectDir ? `${projectDir}#${profileId}` : `global#${profileId}`;
+  }
+
+  private async loadProfilesFromDirectory(agentsDir: string, projectDir?: string): Promise<void> {
     const dirExists = await fs
       .access(agentsDir)
       .then(() => true)
@@ -343,11 +347,16 @@ export class AgentProfileManager {
     try {
       const entries = await fs.readdir(agentsDir, { withFileTypes: true });
       for (const entry of entries) {
-        if (entry.isDirectory()) {
+        if (entry.isDirectory() || entry.isSymbolicLink()) {
           const configPath = path.join(agentsDir, entry.name, 'config.json');
           const profile = await this.loadProfileFile(configPath, entry.name);
 
           if (profile) {
+            // Ensure projectDir is set if it's a project-level directory
+            if (projectDir) {
+              profile.projectDir = projectDir;
+            }
+
             const profileContext: AgentProfileContext = {
               dirName: entry.name,
               order: 0, // Will be set by order file
@@ -372,9 +381,10 @@ export class AgentProfileManager {
         await this.createDefaultOrderFromProfiles(orderedProfiles, agentsDir);
       }
 
-      // Add profiles to the main profiles map
+      // Add profiles to the main profiles map using a namespaced internal ID
       for (const [profileId, context] of orderedProfiles.entries()) {
-        this.profiles.set(profileId, context);
+        const internalId = this.getInternalId(profileId, context.agentProfile.projectDir);
+        this.profiles.set(internalId, context);
       }
     } catch (err) {
       logger.error(`Failed to read agents directory ${agentsDir}: ${err}`);
@@ -589,8 +599,30 @@ export class AgentProfileManager {
     await this.debounceReloadProfiles(agentsDir);
   }
 
-  public getProfile(profileId: string): AgentProfile | undefined {
-    return this.profiles.get(profileId)?.agentProfile;
+  public getProfile(profileId: string, projectDir?: string): AgentProfile | undefined {
+    // Try namespaced lookup first
+    const internalId = this.getInternalId(profileId, projectDir);
+    const profile = this.profiles.get(internalId)?.agentProfile;
+    if (profile) {
+      return profile;
+    }
+
+    // Try global lookup as fallback
+    const globalId = this.getInternalId(profileId);
+    const globalProfile = this.profiles.get(globalId)?.agentProfile;
+    if (globalProfile) {
+      return globalProfile;
+    }
+
+    // Fallback to name-based lookup (case-insensitive)
+    const normalizedId = profileId.toLowerCase();
+    for (const context of this.profiles.values()) {
+      if (context.agentProfile.name.toLowerCase() === normalizedId) {
+        return context.agentProfile;
+      }
+    }
+
+    return undefined;
   }
 
   private getOrderedProfiles(profileContexts: AgentProfileContext[]): AgentProfile[] {
