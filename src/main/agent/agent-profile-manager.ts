@@ -562,7 +562,8 @@ export class AgentProfileManager {
       throw new Error('Agent profile must have an id');
     }
 
-    const existingContext = this.profiles.get(profile.id);
+    const internalId = this.getInternalId(profile.id, profile.projectDir);
+    const existingContext = this.profiles.get(internalId);
 
     if (!existingContext) {
       throw new Error(`Agent profile with id ${profile.id} not found`);
@@ -577,8 +578,9 @@ export class AgentProfileManager {
     this.notifyListeners();
   }
 
-  public async deleteProfile(profileId: string): Promise<void> {
-    const existingContext = this.profiles.get(profileId);
+  public async deleteProfile(profileId: string, projectDir?: string): Promise<void> {
+    const internalId = this.getInternalId(profileId, projectDir);
+    const existingContext = this.profiles.get(internalId);
 
     if (!existingContext) {
       throw new Error(`Agent profile with id ${profileId} not found`);
@@ -589,14 +591,14 @@ export class AgentProfileManager {
 
     try {
       await fs.rm(profileDir, { recursive: true, force: true });
-      this.profiles.delete(profileId);
+      this.profiles.delete(internalId);
     } catch (err) {
       logger.error(`Failed to delete agent profile directory ${profileDir}: ${err}`);
       throw err;
     }
 
     // Reload profiles to update the cache
-    await this.debounceReloadProfiles(agentsDir);
+    await this.debounceReloadProfiles(agentsDir, projectDir);
   }
 
   public getProfile(profileId: string, projectDir?: string): AgentProfile | undefined {
@@ -654,11 +656,19 @@ export class AgentProfileManager {
   }
 
   public getProjectProfiles(projectDir: string, includeGlobal = true): AgentProfile[] {
-    const projectProfiles = Array.from(this.profiles.values()).filter((ctx) => ctx.agentProfile.projectDir === projectDir);
-    const profiles = this.getOrderedProfiles(projectProfiles);
+    const projectProfilesContexts = Array.from(this.profiles.values()).filter((ctx) => ctx.agentProfile.projectDir === projectDir);
+    const profiles = this.getOrderedProfiles(projectProfilesContexts);
 
     if (includeGlobal) {
-      profiles.push(...this.getGlobalProfiles());
+      const globalProfiles = this.getGlobalProfiles();
+      const projectProfileIds = new Set(profiles.map((p) => p.id));
+
+      // Only add global profiles that don't have a project-level override
+      for (const globalProfile of globalProfiles) {
+        if (!projectProfileIds.has(globalProfile.id)) {
+          profiles.push(globalProfile);
+        }
+      }
     }
 
     return profiles;
@@ -691,10 +701,10 @@ export class AgentProfileManager {
       await this.saveOrderFile(agentsDir, order);
 
       // Update the in-memory profiles for this group
-      for (const [profileId, profileContext] of this.profiles.entries()) {
+      for (const profileContext of this.profiles.values()) {
         const profileAgentsDir = getAgentsDirForProfile(profileContext.agentProfile);
         if (profileAgentsDir === agentsDir) {
-          const newOrder = order.get(profileId);
+          const newOrder = order.get(profileContext.agentProfile.id);
           if (newOrder !== undefined) {
             profileContext.order = newOrder;
           }

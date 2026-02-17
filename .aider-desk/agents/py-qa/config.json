@@ -1,0 +1,1 @@
+{ "id": "py-qa", "name": "Python QA", "provider": "anthropic", "model": "claude-3-5-sonnet-20241022", "maxIterations": 5, "subagent": { "enabled": true, "systemPrompt": "Python QA", "invocationMode": "on-demand", "color": "#4b8bbe", "contextMemory": "off" } }

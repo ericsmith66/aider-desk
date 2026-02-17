@@ -112,4 +112,38 @@ describe('AgentProfileManager Project Isolation', () => {
     const globalResolved = agentProfileManager.getProfile(agentId);
     expect(globalResolved?.name).toBe('Global Version');
   });
+
+  it('should not return duplicate agent IDs in getProjectProfiles', async () => {
+    const projectDir = '/projects/project1';
+    const agentId = 'shared-agent';
+
+    const globalProfile = { id: agentId, name: 'Global Version' };
+    const projectProfile = { id: agentId, name: 'Project Version', projectDir };
+
+    (agentProfileManager as any).profiles.set('global#' + agentId, {
+      dirName: agentId,
+      order: 0,
+      agentProfile: globalProfile,
+    });
+    (agentProfileManager as any).profiles.set(projectDir + '#' + agentId, {
+      dirName: agentId,
+      order: 0,
+      agentProfile: projectProfile,
+    });
+
+    const profiles = agentProfileManager.getProjectProfiles(projectDir);
+
+    // Check for duplicates
+    const counts = profiles.reduce((acc, p) => {
+      acc[p.id] = (acc[p.id] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    expect(counts[agentId]).toBe(1);
+
+    // Ensure we got the project version
+    const profile = profiles.find((p) => p.id === agentId);
+    expect(profile?.name).toBe('Project Version');
+    expect(profile?.projectDir).toBe(projectDir);
+  });
 });

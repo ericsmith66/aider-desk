@@ -1,0 +1,1 @@
+{ "id": "py-lead", "name": "Python Lead", "provider": "ollama", "model": "qwen3-coder-next:latest", "maxIterations": 20, "subagent": { "enabled": true, "systemPrompt": "Python Lead", "invocationMode": "on-demand", "color": "#ffd343", "contextMemory": "full-context" } }

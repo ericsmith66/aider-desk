@@ -43,7 +43,11 @@ export const AgentsProvider = ({ children }: AgentsProviderProps) => {
 
   const getProfiles = useCallback(
     (projectDir: string) => {
-      return optimisticProfiles.filter((p) => p.projectDir === projectDir || !p.projectDir);
+      const allProfiles = optimisticProfiles.filter((p) => p.projectDir === projectDir || !p.projectDir);
+      const projectProfileIds = new Set(allProfiles.filter((p) => p.projectDir === projectDir).map((p) => p.id));
+
+      // De-duplicate: only keep global profiles if there's no project override
+      return allProfiles.filter((p) => p.projectDir === projectDir || !projectProfileIds.has(p.id));
     },
     [optimisticProfiles],
   );
@@ -51,7 +55,7 @@ export const AgentsProvider = ({ children }: AgentsProviderProps) => {
   const createProfile = async (profile: AgentProfile, projectDir?: string) => {
     try {
       startTransition(async () => {
-        setOptimisticProfiles((current) => [...current, profile]);
+        setOptimisticProfiles((current) => [...current, { ...profile, projectDir }]);
         await api.createAgentProfile(profile, projectDir);
         await refreshProfiles();
       });
@@ -64,7 +68,9 @@ export const AgentsProvider = ({ children }: AgentsProviderProps) => {
   const updateProfile = async (profile: AgentProfile, projectDir?: string) => {
     try {
       startTransition(async () => {
-        setOptimisticProfiles((current) => current.map((p) => (p.id === profile.id ? profile : p)));
+        setOptimisticProfiles((current) =>
+          current.map((p) => (p.id === profile.id && p.projectDir === projectDir ? { ...profile, projectDir } : p)),
+        );
         await api.updateAgentProfile(profile, projectDir);
         await refreshProfiles();
       });
@@ -77,7 +83,7 @@ export const AgentsProvider = ({ children }: AgentsProviderProps) => {
   const deleteProfile = async (profileId: string, projectDir?: string) => {
     try {
       startTransition(async () => {
-        setOptimisticProfiles((current) => current.filter((p) => p.id !== profileId));
+        setOptimisticProfiles((current) => current.filter((p) => !(p.id === profileId && p.projectDir === projectDir)));
         await api.deleteAgentProfile(profileId, projectDir);
         await refreshProfiles();
       });
