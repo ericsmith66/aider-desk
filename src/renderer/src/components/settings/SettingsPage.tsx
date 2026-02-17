@@ -110,24 +110,29 @@ export const SettingsPage = ({ onClose, initialPageId, initialOptions, openProje
     // Save agent profile changes
     try {
       // Find profiles that were added, updated, or deleted
-      const originalProfileIds = new Set(originalAgentProfiles.map((p) => p.id));
-      const currentProfileIds = new Set(agentProfiles.map((p) => p.id));
+      // Use a unique key combining id and projectDir to handle namespaced profiles correctly
+      const getProfileKey = (p: AgentProfile) => `${p.projectDir || 'global'}#${p.id}`;
+
+      const originalProfileKeys = new Set(originalAgentProfiles.map(getProfileKey));
+      const currentProfileKeys = new Set(agentProfiles.map(getProfileKey));
 
       // Handle deleted profiles
-      for (const profileId of originalProfileIds) {
-        if (!currentProfileIds.has(profileId)) {
-          await deleteProfile(profileId, originalAgentProfiles.find((p) => p.id === profileId)?.projectDir);
+      for (const originalProfile of originalAgentProfiles) {
+        const key = getProfileKey(originalProfile);
+        if (!currentProfileKeys.has(key)) {
+          await deleteProfile(originalProfile.id, originalProfile.projectDir);
         }
       }
 
       // Handle added and updated profiles
       for (const profile of agentProfiles) {
-        if (!originalProfileIds.has(profile.id)) {
+        const key = getProfileKey(profile);
+        if (!originalProfileKeys.has(key)) {
           // New profile
           await createProfile(profile, profile.projectDir);
         } else {
           // Updated profile - check if it actually changed
-          const originalProfile = originalAgentProfiles.find((p) => p.id === profile.id);
+          const originalProfile = originalAgentProfiles.find((p) => getProfileKey(p) === key);
           if (originalProfile && !isEqual(originalProfile, profile)) {
             await updateProfile(profile, profile.projectDir);
           }

@@ -1,0 +1,1 @@
+{ "id": "py-debug", "name": "Python Debugger", "provider": "anthropic", "model": "claude-3-5-sonnet-20241022", "maxIterations": 10, "subagent": { "enabled": true, "systemPrompt": "Python Debugger", "invocationMode": "on-demand", "color": "#ef4444", "contextMemory": "full-context" } }

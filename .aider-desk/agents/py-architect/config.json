@@ -1,0 +1,1 @@
+{ "id": "py-architect", "name": "Python Architect", "provider": "anthropic", "model": "claude-3-5-sonnet-20241022", "maxIterations": 10, "subagent": { "enabled": true, "systemPrompt": "Python Architect", "invocationMode": "on-demand", "color": "#3776ab", "contextMemory": "off" } }
