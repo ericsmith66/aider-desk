@@ -45,6 +45,7 @@ describe('AgentProfileManager', () => {
     (fs.mkdir as any).mockResolvedValue(undefined);
     (fs.rm as any).mockResolvedValue(undefined);
     (fs.access as any).mockResolvedValue(undefined);
+    (fs.stat as any).mockResolvedValue({ isFile: () => true });
     (fs.readdir as any).mockResolvedValue([]);
     (fs.readFile as any).mockResolvedValue('{}');
 
@@ -288,6 +289,96 @@ describe('AgentProfileManager', () => {
       expect(calledWith).toHaveLength(2);
       expect(calledWith[0].id).toBe('profile-1');
       expect(calledWith[1].id).toBe('profile-2');
+    });
+  });
+
+  describe('Mitigation C: No auto-write on read', () => {
+    it('C1: loadProfileFile should NOT write back to disk', async () => {
+      const minimalProfile = { id: 'minimal-agent', name: 'Minimal' };
+      const configPath = path.join(globalAgentsDir, 'minimal-agent', 'config.json');
+
+      (fs.access as any).mockResolvedValue(undefined);
+      (fs.readFile as any).mockResolvedValue(JSON.stringify(minimalProfile));
+      (fs.readdir as any).mockResolvedValue([]);
+
+      const profile = await (agentProfileManager as any).loadProfileFile(configPath, 'minimal-agent');
+
+      // Profile should be loaded and sanitized in-memory
+      expect(profile).not.toBeNull();
+      expect(profile.provider).toBeDefined(); // defaults filled in
+
+      // But fs.writeFile should NOT have been called during load
+      expect(fs.writeFile as any).not.toHaveBeenCalled();
+    });
+
+    it('C2: sanitizeAgentProfile should fill defaults without side effects', () => {
+      const minimal = { id: 'test', name: 'Test' } as any;
+      const sanitized = (agentProfileManager as any).sanitizeAgentProfile(minimal, 'test');
+
+      expect(sanitized.id).toBe('test');
+      expect(sanitized.name).toBe('Test');
+      expect(sanitized.provider).toBeDefined();
+      expect(sanitized.maxIterations).toBeDefined();
+      expect(sanitized.subagent).toBeDefined();
+
+      // Pure function — no I/O
+      expect(fs.writeFile as any).not.toHaveBeenCalled();
+    });
+
+    it('C3: loading a profile should preserve the original file on disk', async () => {
+      const originalContent = JSON.stringify({ id: 'preserve-me', name: 'Original' });
+      const configPath = path.join(globalAgentsDir, 'preserve-me', 'config.json');
+
+      (fs.access as any).mockResolvedValue(undefined);
+      (fs.readFile as any).mockResolvedValue(originalContent);
+      (fs.readdir as any).mockResolvedValue([]);
+
+      await (agentProfileManager as any).loadProfileFile(configPath, 'preserve-me');
+
+      // writeFile should not have been called — file stays as-is
+      expect(fs.writeFile as any).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Mitigation A: No hardcoded projectDir from file', () => {
+    it('A1: should ignore hardcoded projectDir from config file', async () => {
+      const profileWithForeignPath = {
+        id: 'foreign-agent',
+        name: 'Foreign',
+        projectDir: '/some/foreign/path',
+      };
+      const configPath = path.join(globalAgentsDir, 'foreign-agent', 'config.json');
+
+      (fs.access as any).mockResolvedValue(undefined);
+      (fs.readFile as any).mockResolvedValue(JSON.stringify(profileWithForeignPath));
+      (fs.readdir as any).mockResolvedValue([]);
+
+      const profile = await (agentProfileManager as any).loadProfileFile(configPath, 'foreign-agent');
+
+      // projectDir should be undefined (global), not the hardcoded value
+      expect(profile).not.toBeNull();
+      expect(profile.projectDir).toBeUndefined();
+    });
+
+    it('A2: should set projectDir based on load directory, not file contents', async () => {
+      const profileWithWrongPath = {
+        id: 'project-agent',
+        name: 'Project Agent',
+        projectDir: '/wrong/path',
+      };
+      const projectDir = '/my-project';
+      const projectAgentsDir = path.join(projectDir, AIDER_DESK_AGENTS_DIR);
+      const configPath = path.join(projectAgentsDir, 'project-agent', 'config.json');
+
+      (fs.access as any).mockResolvedValue(undefined);
+      (fs.readFile as any).mockResolvedValue(JSON.stringify(profileWithWrongPath));
+      (fs.readdir as any).mockResolvedValue([]);
+
+      const profile = await (agentProfileManager as any).loadProfileFile(configPath, 'project-agent');
+
+      // projectDir should NOT be the hardcoded value from the file
+      expect(profile).not.toBeNull();
+      expect(profile.projectDir).not.toBe('/wrong/path');
     });
   });
 

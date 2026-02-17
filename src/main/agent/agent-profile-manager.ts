@@ -87,7 +87,7 @@ export class AgentProfileManager {
     const projectAgentsDir = getProjectAgentsDir(projectDir);
 
     // Load project-specific profiles
-    await this.loadProfilesFromDirectory(projectAgentsDir);
+    await this.loadProfilesFromDirectory(projectAgentsDir, projectDir);
 
     // Setup file watcher for project directory
     await this.setupWatcherForDirectory(projectAgentsDir);
@@ -272,6 +272,19 @@ export class AgentProfileManager {
   private async reloadProfiles(agentsDir: string): Promise<void> {
     logger.info(`Reloading agent profiles from ${agentsDir}`);
 
+    // Derive projectDir from the agentsDir path if it's a project-specific directory
+    // Project agents dirs look like: /path/to/project/.aider-desk/agents
+    // Global agents dir looks like: ~/.aider-desk/agents
+    let projectDir: string | undefined;
+    const globalAgentsDir = getGlobalAgentsDir();
+    if (agentsDir !== globalAgentsDir) {
+      // Strip the /.aider-desk/agents suffix to get the project dir
+      const suffix = '/' + AIDER_DESK_AGENTS_DIR;
+      if (agentsDir.endsWith(suffix)) {
+        projectDir = agentsDir.slice(0, -suffix.length);
+      }
+    }
+
     // Clear existing profiles from this directory
     const profilesToRemove: string[] = [];
     for (const [profileId, context] of this.profiles.entries()) {
@@ -283,7 +296,7 @@ export class AgentProfileManager {
     profilesToRemove.forEach((profileId) => this.profiles.delete(profileId));
 
     // Reload profiles from directory
-    await this.loadProfilesFromDirectory(agentsDir);
+    await this.loadProfilesFromDirectory(agentsDir, projectDir);
 
     // Notify listeners
     this.notifyListeners();
@@ -324,7 +337,7 @@ export class AgentProfileManager {
     }
   }
 
-  private async loadProfilesFromDirectory(agentsDir: string): Promise<void> {
+  private async loadProfilesFromDirectory(agentsDir: string, projectDir?: string): Promise<void> {
     const dirExists = await fs
       .access(agentsDir)
       .then(() => true)
@@ -348,6 +361,10 @@ export class AgentProfileManager {
           const profile = await this.loadProfileFile(configPath, entry.name);
 
           if (profile) {
+            // Set projectDir based on which directory we loaded from, not from file contents
+            if (projectDir) {
+              profile.projectDir = projectDir;
+            }
             const profileContext: AgentProfileContext = {
               dirName: entry.name,
               order: 0, // Will be set by order file
@@ -382,9 +399,11 @@ export class AgentProfileManager {
   }
 
   private sanitizeAgentProfile(loadedProfile: AgentProfile, agentDirName: string): AgentProfile {
+    // Strip projectDir from file contents — it must be derived from the load directory, not the file
+    const { projectDir: _ignoredProjectDir, ...profileWithoutProjectDir } = loadedProfile;
     return {
-      ...loadedProfile,
-      id: loadedProfile.id || uuidv4(),
+      ...profileWithoutProjectDir,
+      id: profileWithoutProjectDir.id || uuidv4(),
       name: loadedProfile.name || agentDirName,
       provider: loadedProfile.provider || DEFAULT_AGENT_PROFILE.provider,
       model: loadedProfile.model || DEFAULT_AGENT_PROFILE.model,
@@ -416,12 +435,8 @@ export class AgentProfileManager {
       const content = await fs.readFile(filePath, 'utf-8');
       const loadedProfile: AgentProfile = JSON.parse(content);
 
-      // Sanitize profile with defaults
+      // Sanitize profile with defaults (in-memory only — never write back on load)
       const profile = this.sanitizeAgentProfile(loadedProfile, dirName);
-      if (JSON.stringify(profile) !== JSON.stringify(loadedProfile)) {
-        logger.info(`Saving sanitized agent profile to ${filePath}`);
-        await this.saveProfileToFile(profile, filePath);
-      }
 
       // Discover and load rule files for this profile
       profile.ruleFiles = await getAllRuleFilesForProfile(profile, dirName);
