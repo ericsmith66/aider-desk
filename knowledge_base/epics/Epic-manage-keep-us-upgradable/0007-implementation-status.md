@@ -65,7 +65,7 @@ Update this table as work progresses.
 
 | PRD | Status | PR Branch (fork) | Based on | Code/Test Files Changed (high-level) | Upstream Issue | Upstream PR | Notes |
 |---:|---|---|---|---|---|---|---|
-| 0010 | Planned / In Progress / Done / Superseded | `perf/token-count-debouncing` | `upstream/main` or `sync/*` | `src/main/task/task.ts` | TBD | TBD | |
+| 0010 | In Progress | `perf/token-count-debouncing` | `upstream/main` | `src/main/task/task.ts`, `src/main/task/__tests__/task.context-info-debounce.test.ts` | TBD | TBD | Hooked `Task.updateContextInfo()` behind a 500ms debounce to reduce burst updates. Validation blocked because upstream web tests fail (`localStorage.clear is not a function`). Node engine mismatch noted (repo requires `<25`; local is `v25.2.1`). |
 | 0020 | Planned | `fix/agent-profile-lookup-fallback` |  |  | TBD | TBD | |
 | 0030 | Planned | `fix/profile-aware-task-init` |  |  | TBD | TBD | |
 | 0040 | Planned | `feat/task-tooling-clarity` |  |  | TBD | TBD | |
@@ -100,6 +100,18 @@ Add entries in chronological order.
 
 ### Entries
 
-#### 2026-02-18 — (none yet)
+#### 2026-02-18 — PRD-0010 — Token-count debouncing
 
-- No PRD branches have been executed following the new process in this cycle.
+- Base:
+  - PR branch: `perf/token-count-debouncing`
+  - Created from: `upstream/main`
+- Changes made (summary):
+  - `src/main/task/task.ts`: debounce/batch `updateContextInfo()` calls (500ms), coalesce flags across burst calls, cancel pending work and resolve waiters on `close()`/`reset()`.
+  - `src/main/task/__tests__/task.context-info-debounce.test.ts`: unit test verifying burst calls coalesce and flags OR together.
+  - Tests: `npm run test` (fails on upstream baseline: web `TaskSidebarSubtasks.test.tsx` — `localStorage.clear is not a function`).
+- Upstream tracking:
+  - Issue: TBD
+  - PR: TBD
+- Merge / integration:
+  - Merged into `sync/upstream-2026-02-18`: ❌
+  - Landed in fork `main`: ❌
