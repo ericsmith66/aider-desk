@@ -66,7 +66,7 @@ Update this table as work progresses.
 | PRD | Status | PR Branch (fork) | Based on | Code/Test Files Changed (high-level) | Upstream Issue | Upstream PR | Notes |
 |---:|---|---|---|---|---|---|---|
 | 0010 | In Progress | `perf/token-count-debouncing` | `upstream/main` | `src/main/task/task.ts`, `src/main/task/__tests__/task.context-info-debounce.test.ts` | TBD | TBD | Hooked `Task.updateContextInfo()` behind a 500ms debounce to reduce burst updates. Validation blocked because upstream web tests fail (`localStorage.clear is not a function`). Node engine mismatch noted (repo requires `<25`; local is `v25.2.1`). |
-| 0020 | Planned | `fix/agent-profile-lookup-fallback` |  |  | TBD | TBD | |
+| 0020 | Done (PR branch ready) | `fix/agent-profile-lookup-fallback` | `upstream/main` | `src/main/agent/agent-profile-manager.ts`, `src/main/agent/__tests__/agent-profile-manager.test.ts`, `src/renderer/src/__tests__/setup.ts` | TBD | TBD | `AgentProfileManager.getProfile()` now falls back to case-insensitive lookup by `AgentProfile.name` when ID lookup fails (warns on ambiguity; deterministic first match). Added web test `localStorage` polyfill so pre-commit can run web tests cleanly. |
 | 0030 | Planned | `fix/profile-aware-task-init` |  |  | TBD | TBD | |
 | 0040 | Planned | `feat/task-tooling-clarity` |  |  | TBD | TBD | |
 | 0050 | Planned | `fix/ollama-aider-prefix` |  |  | TBD | TBD | |
@@ -109,6 +109,23 @@ Add entries in chronological order.
   - `src/main/task/task.ts`: debounce/batch `updateContextInfo()` calls (500ms), coalesce flags across burst calls, cancel pending work and resolve waiters on `close()`/`reset()`.
   - `src/main/task/__tests__/task.context-info-debounce.test.ts`: unit test verifying burst calls coalesce and flags OR together.
   - Tests: `npm run test` (fails on upstream baseline: web `TaskSidebarSubtasks.test.tsx` — `localStorage.clear is not a function`).
+- Upstream tracking:
+  - Issue: TBD
+  - PR: TBD
+- Merge / integration:
+  - Merged into `sync/upstream-2026-02-18`: ❌
+  - Landed in fork `main`: ❌
+
+#### 2026-02-18 — PRD-0020 — Agent profile name lookup fallback
+
+- Base:
+  - PR branch: `fix/agent-profile-lookup-fallback`
+  - Created from: `upstream/main`
+- Changes made (summary):
+  - `src/main/agent/agent-profile-manager.ts`: `getProfile()` now resolves by ID first, then falls back to case-insensitive `AgentProfile.name` matching; warns if multiple profiles match and returns a deterministic first match.
+  - `src/main/agent/__tests__/agent-profile-manager.test.ts`: added unit tests for name-based lookup behavior.
+  - `src/renderer/src/__tests__/setup.ts`: added in-memory `localStorage` polyfill so web tests can call `localStorage.clear()`.
+  - Tests: pre-commit runs `npm run typecheck` + `npm run test` (node+web) and passed.
 - Upstream tracking:
   - Issue: TBD
   - PR: TBD
