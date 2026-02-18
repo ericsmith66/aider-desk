@@ -125,6 +125,16 @@ export class Task {
   private isDeterminingTaskState = false;
   private resolutionAbortControllers: Record<string, AbortController> = {};
   private tokensInfo: TokensInfoData;
+
+  private pendingContextInfoUpdate: {
+    checkContextFilesIncluded: boolean;
+    checkRepoMapIncluded: boolean;
+  } = {
+    checkContextFilesIncluded: false,
+    checkRepoMapIncluded: false,
+  };
+
+  private contextInfoUpdateWaiters: Array<() => void> = [];
   private queuedPrompts: QueuedPromptData[] = [];
 
   private readonly taskDataPath: string;
@@ -586,11 +596,22 @@ export class Task {
     this.resolveAgentRunPromises();
     this.cleanupChunkBuffers();
 
+    this.debouncedUpdateContextInfo.cancel();
+    this.debouncedEstimateTokens.cancel();
+    this.resolveContextInfoUpdateWaiters();
+
     await this.aiderManager.kill();
     if (cleanupEmptyTask) {
       await this.cleanUpEmptyTask();
     }
     this.initialized = false;
+  }
+
+  private resolveContextInfoUpdateWaiters() {
+    while (this.contextInfoUpdateWaiters.length) {
+      const resolve = this.contextInfoUpdateWaiters.shift();
+      resolve?.();
+    }
   }
 
   private async cleanUpEmptyTask() {
@@ -2615,9 +2636,29 @@ export class Task {
   }
 
   async updateContextInfo(checkContextFilesIncluded = false, checkRepoMapIncluded = false) {
-    void this.sendRequestContextInfo();
-    await this.updateAgentEstimatedTokens(checkContextFilesIncluded, checkRepoMapIncluded);
+    this.pendingContextInfoUpdate.checkContextFilesIncluded ||= checkContextFilesIncluded;
+    this.pendingContextInfoUpdate.checkRepoMapIncluded ||= checkRepoMapIncluded;
+
+    return await new Promise<void>((resolve) => {
+      this.contextInfoUpdateWaiters.push(resolve);
+      void this.debouncedUpdateContextInfo();
+    });
   }
+
+  private debouncedUpdateContextInfo = debounce(async () => {
+    const { checkContextFilesIncluded, checkRepoMapIncluded } = this.pendingContextInfoUpdate;
+    this.pendingContextInfoUpdate = {
+      checkContextFilesIncluded: false,
+      checkRepoMapIncluded: false,
+    };
+
+    try {
+      await this.sendRequestContextInfo();
+      await this.updateAgentEstimatedTokens(checkContextFilesIncluded, checkRepoMapIncluded);
+    } finally {
+      this.resolveContextInfoUpdateWaiters();
+    }
+  }, 500);
 
   private async sendRequestContextInfo() {
     const contextFiles = await this.getContextFiles();
@@ -3017,6 +3058,9 @@ ${error.stderr}`,
     if (!this.initialized) {
       return;
     }
+
+    this.debouncedUpdateContextInfo.cancel();
+    this.resolveContextInfoUpdateWaiters();
 
     this.interruptResponse();
     await this.close(false, false);
