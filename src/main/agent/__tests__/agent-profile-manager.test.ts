@@ -24,6 +24,7 @@ import { AgentProfile } from '@common/types';
 import { AgentProfileManager } from '../agent-profile-manager';
 
 import { AIDER_DESK_AGENTS_DIR } from '@/constants';
+import logger from '@/logger';
 import { createMockAgentProfile } from '@/__tests__/mocks';
 
 describe('AgentProfileManager', () => {
@@ -120,6 +121,71 @@ describe('AgentProfileManager', () => {
       // Update should NOT trigger debounceReloadProfiles
       // (create and delete DO trigger it, but update doesn't - which is correct)
       expect(debounceSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('PRD-0020 - name-based profile lookup fallback', () => {
+    it('should still find profile by id (backward compatible)', () => {
+      const qaProfile = createMockAgentProfile({
+        id: 'abc-123-def',
+        name: 'QA',
+      });
+
+      (agentProfileManager as any).profiles.set('abc-123-def', {
+        dirName: 'qa',
+        order: 0,
+        agentProfile: qaProfile,
+      });
+
+      expect(agentProfileManager.getProfile('abc-123-def')?.id).toBe('abc-123-def');
+    });
+
+    it('should find profile by name (case-insensitive)', () => {
+      const qaProfile = createMockAgentProfile({
+        id: 'abc-123-def',
+        name: 'QA',
+      });
+
+      (agentProfileManager as any).profiles.set('abc-123-def', {
+        dirName: 'qa',
+        order: 0,
+        agentProfile: qaProfile,
+      });
+
+      expect(agentProfileManager.getProfile('qa')?.id).toBe('abc-123-def');
+      expect(agentProfileManager.getProfile('QA')?.id).toBe('abc-123-def');
+      expect(agentProfileManager.getProfile('Qa')?.id).toBe('abc-123-def');
+    });
+
+    it('should return undefined for unknown name', () => {
+      expect(agentProfileManager.getProfile('nonexistent')).toBeUndefined();
+    });
+
+    it('should warn and return a deterministic first match when multiple profiles share the same name', () => {
+      const first = createMockAgentProfile({
+        id: 'id-1',
+        name: 'Architect',
+      });
+      const second = createMockAgentProfile({
+        id: 'id-2',
+        name: 'Architect',
+      });
+
+      // Order matters: lower order should come first.
+      (agentProfileManager as any).profiles.set('id-1', {
+        dirName: 'architect-1',
+        order: 0,
+        agentProfile: first,
+      });
+      (agentProfileManager as any).profiles.set('id-2', {
+        dirName: 'architect-2',
+        order: 1,
+        agentProfile: second,
+      });
+
+      const found = agentProfileManager.getProfile('architect');
+      expect(found?.id).toBe('id-1');
+      expect(logger.warn).toHaveBeenCalled();
     });
   });
 

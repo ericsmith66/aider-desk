@@ -589,8 +589,31 @@ export class AgentProfileManager {
     await this.debounceReloadProfiles(agentsDir);
   }
 
-  public getProfile(profileId: string): AgentProfile | undefined {
-    return this.profiles.get(profileId)?.agentProfile;
+  public getProfile(profileIdOrName: string): AgentProfile | undefined {
+    const byId = this.profiles.get(profileIdOrName)?.agentProfile;
+    if (byId) {
+      return byId;
+    }
+
+    const normalizedLookup = profileIdOrName.trim().toLowerCase();
+    if (!normalizedLookup) {
+      return undefined;
+    }
+
+    const matches = this.getAllProfiles().filter((p) => p.name.trim().toLowerCase() === normalizedLookup);
+    if (matches.length === 0) {
+      return undefined;
+    }
+
+    if (matches.length > 1) {
+      logger.warn(
+        `Multiple agent profiles match name '${profileIdOrName}'. Returning the first match: ${matches[0].id}. All matches: ${matches
+          .map((p) => p.id)
+          .join(', ')}`,
+      );
+    }
+
+    return matches[0];
   }
 
   private getOrderedProfiles(profileContexts: AgentProfileContext[]): AgentProfile[] {
