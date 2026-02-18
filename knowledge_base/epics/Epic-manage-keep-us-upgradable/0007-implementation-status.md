@@ -46,10 +46,10 @@ For each PRD you execute:
 ### Baseline / snapshot
 
 - Baseline branch: `sync/upstream-2026-02-18`
-- Snapshot validated:
-  - Lint: ❌ (4 warnings in `npm run lint:check`)
+- Snapshot validated (baseline results):
+  - Lint: ❌ (warnings present in `npm run lint:check`)
   - Typecheck: ✅
-  - Tests: ❌ (web: `TaskSidebarSubtasks.test.tsx` fails; `localStorage.clear is not a function`)
+  - Tests: ❌ (web: `TaskSidebarSubtasks.test.tsx` failed; `localStorage.clear is not a function`)
 - Snapshot contains epic docs commit: ❌
   - Commit: N/A
   - Message: N/A
@@ -89,15 +89,15 @@ This note is here so future cycles can audit what happened and why we changed th
 
 Update this table as work progresses.
 
-| PRD | Status | PR Branch (fork) | Based on | Code/Test Files Changed (high-level) | Upstream Issue | Upstream PR | Notes |
+| PRD | Status | PR Branch (fork) | Based on | Base commit (optional) | Proof-stack included? | Validation (lint/typecheck/test) | Code/Test Files Changed (high-level) | Upstream Issue | Upstream PR | Notes |
 |---:|---|---|---|---|---|---|---|
-| 0010 | In Progress | `perf/token-count-debouncing` | `upstream/main` | `src/main/task/task.ts`, `src/main/task/__tests__/task.context-info-debounce.test.ts` | TBD | TBD | Hooked `Task.updateContextInfo()` behind a 500ms debounce to reduce burst updates. Validation blocked because upstream web tests fail (`localStorage.clear is not a function`). Node engine mismatch noted (repo requires `<25`; local is `v25.2.1`). |
-| 0020 | Planned | `fix/agent-profile-lookup-fallback` |  |  | TBD | TBD | |
-| 0030 | Planned | `fix/profile-aware-task-init` |  |  | TBD | TBD | |
-| 0040 | Planned | `feat/task-tooling-clarity` |  |  | TBD | TBD | |
-| 0050 | Planned | `fix/ollama-aider-prefix` |  |  | TBD | TBD | |
-| 0060 | Planned | `fix/ipc-max-listeners` |  |  | TBD | TBD | |
-| 0070 | Planned | `test/jsdom-storage-mocks` |  |  | TBD | TBD | |
+| 0010 | In Progress | `perf/token-count-debouncing` | `upstream/main` |  | ✅ | Baseline failing (expected until PRD-0070 applied) | `src/main/task/task.ts`, `src/main/task/__tests__/task.context-info-debounce.test.ts` | TBD | TBD | Debounces/batches token-context updates to reduce burst updates. |
+| 0020 | Done (PR branch ready) | `fix/agent-profile-lookup-fallback` | `upstream/main` |  | ✅ | Baseline failing (expected until PRD-0070 applied) | `src/main/agent/agent-profile-manager.ts`, `src/main/agent/__tests__/agent-profile-manager.test.ts` | TBD | TBD | `AgentProfileManager.getProfile()` now falls back to case-insensitive lookup by profile name when ID lookup fails. |
+| 0030 | Done (PR branch ready) | `fix/profile-aware-task-init` | `upstream/main` |  | ✅ | Baseline failing (expected until PRD-0070 applied) | `src/common/types.ts`, `src/main/project/project.ts`, `src/main/project/__tests__/project.task-creation.test.ts` | TBD | TBD | `createNewTask()` now honors `CreateTaskParams.agentProfileId` to select profile/provider/model rather than inheriting parent overrides. |
+| 0040 | Done (PR branch ready) | `feat/task-tooling-clarity` | `upstream/main` |  | ✅ | Baseline failing (expected until PRD-0070 applied) | `src/main/agent/tools/tasks.ts`, `src/main/agent/tools/__tests__/tasks.test.ts` | TBD | TBD | Clarifies `create_task` tool usage, profiles, examples, and passes `agentProfileId` through task creation. |
+| 0050 | Done (PR branch ready) | `fix/ollama-aider-prefix` | `upstream/main` |  | ✅ | Baseline failing (expected until PRD-0070 applied) | `src/main/models/providers/ollama.ts`, `src/main/models/providers/__tests__/ollama.aider-prefix.test.ts` | TBD | TBD | Fixes Aider mapping prefix to `ollama/<model>` (not `ollama_chat/<model>`). |
+| 0060 | Done (PR branch ready) | `fix/ipc-max-listeners` | `upstream/main` |  | ✅ | Baseline failing (expected until PRD-0070 applied) | `src/preload/index.ts`, `src/preload/event-emitter-config.ts`, `src/preload/__tests__/event-emitter-limits.test.ts` | TBD | TBD | Increases `EventEmitter.defaultMaxListeners` to reduce noisy IPC warnings. |
+| 0070 | Done (PR branch ready) | `test/jsdom-storage-mocks` | `upstream/main` |  | ✅ | ✅/✅/✅ | `src/renderer/src/__tests__/setup.ts`, `src/renderer/src/__tests__/storage-mock.test.ts` | TBD | TBD | Adds full `localStorage` + `sessionStorage` mocks for web tests; clears between tests. |
 
 ---
 

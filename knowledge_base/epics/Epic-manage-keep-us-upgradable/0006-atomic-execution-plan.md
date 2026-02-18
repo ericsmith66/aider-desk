@@ -47,6 +47,20 @@ Authoritative policy text:
 
 ## 0) Pre-flight (do this every time)
 
+### 0.0 Pre-flight checklist (non-optional)
+
+Before starting any PRD branch, confirm:
+
+1. You are working in the correct worktree:
+   - **Docs worktree**: fork `main` only (edit `knowledge_base/**` only here)
+   - **Code worktree**: used for `upstream/main`, `sync/*`, PRD branches, and `proof/*`
+2. Your current branch is the correct base for upstream-worthy work:
+   - `upstream/main` (preferred), OR
+   - a validated `sync/upstream-YYYY-MM-DD` snapshot
+3. Your working tree is clean (`git status` shows nothing to commit).
+4. You have recorded/confirmed the current cycle’s baseline failures in `0007-implementation-status.md`.
+5. You are about to create **one** branch for **one** PRD.
+
 ### 0.1 Confirm you have remotes
 
 ```bash
