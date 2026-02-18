@@ -70,6 +70,19 @@ Notes:
 
 This note is here so future cycles can audit what happened and why we changed the workflow.
 
+### Proof stack status
+
+- Proof branch: `proof/stack-2026-02-18`
+  - Base: `upstream/main`
+  - Contains PRDs: `0010–0070`
+  - Validation:
+    - Lint: ✅
+    - Typecheck: ✅
+    - Tests: ✅ (`27/27` files, `212/212` tests)
+  - Notes:
+    - Merge conflict in `src/renderer/src/__tests__/setup.ts` resolved by keeping PRD-0070 full storage mocks.
+    - `run_aider_desk_capture.sh` was copied from fork `main` into the proof branch for convenience.
+
 ---
 
 ## PRD execution status (one row per PRD)
