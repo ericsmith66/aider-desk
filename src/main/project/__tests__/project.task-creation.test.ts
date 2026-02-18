@@ -189,6 +189,7 @@ describe('Project - createNewTask', () => {
       initializeForProject: vi.fn(() => Promise.resolve()),
       removeProject: vi.fn(),
       getDefaultAgentProfileId: vi.fn(() => 'default-profile'),
+      getProfile: vi.fn(),
     };
     mockMemoryManager = {};
     mockHookManager = {
@@ -334,6 +335,52 @@ describe('Project - createNewTask', () => {
 
       // Assert: Event manager should be called for each task
       expect(mockEventManager.sendTaskCreated).toHaveBeenCalledTimes(3);
+    });
+
+    it('should use the requested agent profile provider/model when agentProfileId is specified (PRD-0030)', async () => {
+      // Setup: Create parent task and simulate that it has explicit provider/model overrides
+      const parentTask = await project.createNewTask();
+      const parentTaskInstance = (project as any).tasks.get(parentTask.id) as Task;
+      parentTaskInstance.task.provider = 'ollama';
+      parentTaskInstance.task.model = 'qwen3';
+
+      // Agent profile lookup should resolve "qa" to a profile with its own provider/model
+      (mockAgentProfileManager.getProfile as Mock).mockReturnValue({
+        id: 'qa-profile-id',
+        name: 'QA',
+        provider: 'anthropic',
+        model: 'claude-sonnet-4',
+      });
+
+      const subtask = await project.createNewTask({
+        parentId: parentTask.id,
+        agentProfileId: 'qa',
+      });
+
+      expect(subtask.parentId).toBe(parentTask.id);
+      expect(subtask.agentProfileId).toBe('qa-profile-id');
+      expect(subtask.provider).toBe('anthropic');
+      expect(subtask.model).toBe('claude-sonnet-4');
+    });
+
+    it('should fall back to inherited provider/model when agentProfileId is invalid (PRD-0030)', async () => {
+      const parentTask = await project.createNewTask();
+      const parentTaskInstance = (project as any).tasks.get(parentTask.id) as Task;
+      parentTaskInstance.task.provider = 'ollama';
+      parentTaskInstance.task.model = 'qwen3';
+
+      (mockAgentProfileManager.getProfile as Mock).mockReturnValue(undefined);
+
+      const subtask = await project.createNewTask({
+        parentId: parentTask.id,
+        agentProfileId: 'does-not-exist',
+      });
+
+      // Provider/model inherited since profile cannot be resolved
+      expect(subtask.provider).toBe('ollama');
+      expect(subtask.model).toBe('qwen3');
+      // Requested value is preserved for visibility/debugging
+      expect(subtask.agentProfileId).toBe('does-not-exist');
     });
 
     it('should allow creating multiple subtasks with the same parent', async () => {
