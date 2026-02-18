@@ -18,6 +18,7 @@ describe('Tasks Tools - search_task', () => {
   const TASKS_TOOL_GROUP_NAME = 'tasks';
   const TOOL_GROUP_NAME_SEPARATOR = '---';
   const TASKS_TOOL_SEARCH_TASK = 'search_task';
+  const TASKS_TOOL_CREATE_TASK = 'create_task';
   const AIDER_DESK_TASKS_DIR = '.aider-desk/tasks';
 
   beforeEach(async () => {
@@ -27,6 +28,7 @@ describe('Tasks Tools - search_task', () => {
       getTask: vi.fn(),
       deleteTask: vi.fn(),
       getTasks: vi.fn(),
+      createNewTask: vi.fn(),
     };
 
     mockTask = {
@@ -219,6 +221,24 @@ describe('Tasks Tools - search_task', () => {
       const searchTaskToolKey = `${TASKS_TOOL_GROUP_NAME}${TOOL_GROUP_NAME_SEPARATOR}${TASKS_TOOL_SEARCH_TASK}`;
 
       expect(tools).toHaveProperty(searchTaskToolKey);
+    });
+  });
+
+  describe('PRD-0040 - create_task tool clarity', () => {
+    it('should include standard profiles, guidance, and examples in create_task description', () => {
+      const tools = createTasksToolset(mockSettings, mockTask, mockProfile, mockPromptContext);
+      const createTaskToolKey = `${TASKS_TOOL_GROUP_NAME}${TOOL_GROUP_NAME_SEPARATOR}${TASKS_TOOL_CREATE_TASK}`;
+      const createTool = tools[createTaskToolKey];
+
+      expect(createTool).toBeDefined();
+      expect(createTool.description).toContain('Available standard profiles');
+      expect(createTool.description).toContain('"qa"');
+      expect(createTool.description).toContain('"architect"');
+      expect(createTool.description).toContain('"debug"');
+      expect(createTool.description).toContain('case-insensitive');
+      expect(createTool.description).toContain('inherits');
+      expect(createTool.description).toContain('Examples');
+      expect(createTool.description).toContain('agentProfileId');
     });
   });
 
