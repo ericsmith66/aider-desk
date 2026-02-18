@@ -41,18 +41,21 @@ For each PRD you execute:
 
 ## Current upstream update cycle
 
-**Cycle ID**: `2026-02-17` (example; update each cycle)
+**Cycle ID**: `2026-02-18`
 
 ### Baseline / snapshot
 
-- Baseline branch: `sync/upstream-2026-02-17`
+- Baseline branch: `sync/upstream-2026-02-18`
 - Snapshot validated:
-  - Lint: ✅/❌
-  - Typecheck: ✅/❌
-  - Tests: ✅/❌
-- Snapshot contains epic docs commit: ✅/❌
-  - Commit: `<sha>`
-  - Message: `docs(epic): sync upgradability process docs onto snapshot`
+  - Lint: ❌ (4 warnings in `npm run lint:check`)
+  - Typecheck: ✅
+  - Tests: ❌ (web: `TaskSidebarSubtasks.test.tsx` fails; `localStorage.clear is not a function`)
+- Snapshot contains epic docs commit: ❌
+  - Commit: N/A
+  - Message: N/A
+
+Notes:
+- `npm ci` succeeds but reports an engine mismatch warning (`node v25.2.1`; package requires `<25`).
 
 ---
 

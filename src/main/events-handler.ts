@@ -923,7 +923,7 @@ export class EventsHandler {
   }
 
   async updateAgentProfile(profile: AgentProfile) {
-    const oldProfile = this.agentProfileManager.getProfile(profile.id, profile.projectDir);
+    const oldProfile = this.agentProfileManager.getProfile(profile.id);
     await this.agentProfileManager.updateProfile(profile);
 
     if (oldProfile) {
@@ -931,8 +931,8 @@ export class EventsHandler {
     }
   }
 
-  async deleteAgentProfile(profileId: string, projectDir?: string) {
-    await this.agentProfileManager.deleteProfile(profileId, projectDir);
+  async deleteAgentProfile(profileId: string, _projectDir?: string) {
+    await this.agentProfileManager.deleteProfile(profileId);
     return this.agentProfileManager.getAllProfiles();
   }
 

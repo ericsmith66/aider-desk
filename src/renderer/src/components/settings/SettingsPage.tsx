@@ -1,8 +1,9 @@
-import { ProjectData, ProviderProfile, SettingsData } from '@common/types';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { isEqual } from 'lodash';
 import { useTranslation } from 'react-i18next';
 import { useHotkeys } from 'react-hotkeys-hook';
+
+import type { AgentProfile, ProjectData, ProviderProfile, SettingsData } from '@common/types';
 
 import { Settings } from '@/pages/Settings';
 import { useSettings } from '@/contexts/SettingsContext';

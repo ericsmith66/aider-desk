@@ -4,6 +4,8 @@
 **Created**: 2026-02-18
 **Purpose**: A step-by-step, **non-optional** procedure for executing this epic with clean diffs, clean PRs, and minimal long-lived divergence.
 
+**Status**: Preliminary execution plan — expected to be amended as we learn.
+
 ---
 
 ## ✅ Definition of Done (end state)
@@ -18,6 +20,9 @@ When this plan is followed for a given upstream update cycle:
    - **plus** any fork-only divergence we intentionally keep
    - **plus** any fixes that are still pending upstream acceptance (temporarily), tracked by PRD status.
 
+Additionally (process proof for this epic):
+5. We can demonstrate that the full set of PRDs for the cycle can be replayed onto `upstream/main` as a clean, repeatable stack (even if we have to do it again after upstream moves).
+
 ---
 
 ## 🚨 Non-Optional Rules (reinforced)
@@ -28,6 +33,10 @@ These rules are duplicated here on purpose:
 2. **PR branches must be based on `upstream/main` (preferred) or a validated `sync/*` snapshot.**
 3. **One PR branch = one PRD / one upstream-worthy change.**
 4. **Do not include `knowledge_base/**` changes in upstream PRs.**
+
+For this epic’s process test (“prove we can lay the fixes on top of upstream”):
+- Prefer PRD branches based on `upstream/main`.
+- Keep `sync/*` as a *pure upstream snapshot* (no fixes), used only for baseline validation and reference.
 
 Authoritative policy text:
 - `knowledge_base/epics/Epic-manage-keep-us-upgradable/0000-epic-overview.md`
@@ -96,23 +105,19 @@ npm run typecheck
 npm run test
 ```
 
+Notes:
+- The snapshot should remain a **clean upstream baseline** (no fixes layered onto it).
+- If the snapshot does not validate, capture the failure in `0007` and proceed by fixing via an *atomic PRD branch* based on `upstream/main`.
+
 ---
 
-## 3) Ensure the epic docs exist on the snapshot (internal-only)
+## 3) Keep epic docs on `main` (and out of upstream PR branches)
 
-If you will do PRD work starting from the `sync/*` branch, bring the epic docs onto it so the process travels with the baseline.
-
-On `sync/upstream-YYYY-MM-DD`:
-
-```bash
-git checkout origin/main -- knowledge_base/epics/Epic-manage-keep-us-upgradable
-git add knowledge_base/epics/Epic-manage-keep-us-upgradable
-git commit -m "docs(epic): sync upgradability process docs onto snapshot"
-git push
-```
+The epic documents live on our fork `main`.
 
 Important:
-- This commit is **fork-only**. It is not intended for upstream.
+- Do **not** include `knowledge_base/**` changes in upstream PR branches.
+- If you choose to copy epic docs onto `sync/*` for internal convenience, that must remain **fork-only** and must not be a prerequisite for executing PRDs.
 
 ---
 
@@ -121,7 +126,8 @@ Important:
 For each PRD (example: PRD-0010 token debouncing):
 
 ```bash
-git checkout -b perf/token-count-debouncing origin/sync/upstream-YYYY-MM-DD
+git fetch upstream
+git checkout -b perf/token-count-debouncing upstream/main
 ```
 
 ### 4.1 Reimplement from the PRD (preferred)
@@ -163,23 +169,52 @@ Open a PR:
 
 ---
 
-## 5) Keep `sync/*` as the integration staging branch
+## 5) (Optional but recommended) Prove the full stack composes
 
-While upstream review is pending, you can use `sync/upstream-YYYY-MM-DD` as your integration branch for **our fork**.
+To prove “we can lay the fixes on top of upstream”, create a temporary integration proof branch and layer the PRDs onto it.
 
-### 5.1 (Optional) Merge PR branches into `sync/*` for fork testing
+Suggested branch name:
+- `proof/stack-YYYY-MM-DD`
 
-If you want a single branch that contains the snapshot plus all our fixes (to validate the combined state):
+Create the proof branch from upstream:
 
 ```bash
-git checkout sync/upstream-YYYY-MM-DD
+git fetch upstream
+git checkout -b proof/stack-YYYY-MM-DD upstream/main
+```
+
+Then layer the PRDs (choose ONE approach):
+
+**A) Merge PR branches (simple, preserves branch structure):**
+
+```bash
 git merge --no-ff perf/token-count-debouncing
-git push
+git merge --no-ff fix/agent-profile-lookup-fallback
+git merge --no-ff fix/profile-aware-task-init
+git merge --no-ff feat/task-tooling-clarity
+git merge --no-ff fix/ollama-aider-prefix
+git merge --no-ff fix/ipc-max-listeners
+git merge --no-ff test/jsdom-storage-mocks
+```
+
+**B) Cherry-pick the PRD commits (cleaner history, requires you to pick exact SHAs):**
+
+```bash
+# example:
+# git cherry-pick <sha-from-prd-0010>
+```
+
+Validate the combined state:
+
+```bash
+npm run lint:check
+npm run typecheck
+npm run test
 ```
 
 Notes:
-- This is for our fork validation. Upstream PRs remain atomic.
-- If you prefer linear history, use `git rebase` locally, but do not rewrite published branch history unless the team agrees.
+- This branch is for **proof and internal validation**. It is not a replacement for atomic upstream PRs.
+- If upstream moves, you should be able to recreate this proof by rebasing PRD branches and re-running these steps.
 
 ---
 
