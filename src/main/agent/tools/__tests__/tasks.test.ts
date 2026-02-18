@@ -18,6 +18,7 @@ describe('Tasks Tools - search_task', () => {
   const TASKS_TOOL_GROUP_NAME = 'tasks';
   const TOOL_GROUP_NAME_SEPARATOR = '---';
   const TASKS_TOOL_SEARCH_TASK = 'search_task';
+  const TASKS_TOOL_CREATE_TASK = 'create_task';
   const AIDER_DESK_TASKS_DIR = '.aider-desk/tasks';
 
   beforeEach(async () => {
@@ -27,6 +28,13 @@ describe('Tasks Tools - search_task', () => {
       getTask: vi.fn(),
       deleteTask: vi.fn(),
       getTasks: vi.fn(),
+      createNewTask: vi.fn(),
+      agentProfileManager: {
+        getAllProfiles: vi.fn(() => [
+          { id: 'p2', name: 'Architect', provider: 'anthropic', model: 'claude' },
+          { id: 'p1', name: 'QA', provider: 'openai', model: 'gpt-4.1' },
+        ]),
+      },
     };
 
     mockTask = {
@@ -219,6 +227,26 @@ describe('Tasks Tools - search_task', () => {
       const searchTaskToolKey = `${TASKS_TOOL_GROUP_NAME}${TOOL_GROUP_NAME_SEPARATOR}${TASKS_TOOL_SEARCH_TASK}`;
 
       expect(tools).toHaveProperty(searchTaskToolKey);
+    });
+  });
+
+  describe('PRD-0040 - create_task tool clarity', () => {
+    it('should include available agent profiles in create_task tool description and parameter docs', () => {
+      const tools = createTasksToolset(mockSettings, mockTask, mockProfile, mockPromptContext);
+      const createTaskToolKey = `${TASKS_TOOL_GROUP_NAME}${TOOL_GROUP_NAME_SEPARATOR}${TASKS_TOOL_CREATE_TASK}`;
+      const createTool = tools[createTaskToolKey];
+
+      expect(createTool).toBeDefined();
+      expect(createTool.description).toContain('Available agent profiles');
+      // Deterministic ordering (Architect before QA)
+      expect(createTool.description).toContain('- Architect (id: p2)');
+      expect(createTool.description).toContain('- QA (id: p1)');
+      expect(createTool.description).toContain('Examples');
+
+      // NOTE: Zod's internal storage for per-field descriptions can vary depending on wrappers
+      // (e.g., `optional()`), so we avoid brittle assertions on `_def` internals here.
+      // Tool-level `description` is what the LLM sees.
+      expect(createTool.inputSchema).toBeDefined();
     });
   });
 

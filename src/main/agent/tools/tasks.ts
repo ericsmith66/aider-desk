@@ -25,8 +25,60 @@ import logger from '@/logger';
 import { isAbortError } from '@/utils/errors';
 import { Task } from '@/task';
 
+const MAX_PROFILES_IN_DESCRIPTION = 20;
+
+const formatAvailableProfilesForDescription = (profiles: AgentProfile[]): string => {
+  if (!profiles.length) {
+    return 'No agent profiles found.';
+  }
+
+  const ordered = [...profiles]
+    .map((p) => ({ ...p, name: (p.name ?? '').trim() }))
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }) || a.id.localeCompare(b.id));
+
+  const shown = ordered.slice(0, MAX_PROFILES_IN_DESCRIPTION);
+  const remaining = ordered.length - shown.length;
+
+  const lines = shown.map((p) => `- ${p.name || '(unnamed)'} (id: ${p.id})`);
+  if (remaining > 0) {
+    lines.push(`- …and ${remaining} more`);
+  }
+  return lines.join('\n');
+};
+
+const buildCreateTaskDescription = (availableProfiles: AgentProfile[]): string => {
+  return `${TASKS_TOOL_DESCRIPTIONS[TASKS_TOOL_CREATE_TASK]}
+
+If you need to assign a specific agent profile to the new task, set \`agentProfileId\` to either:
+- the profile's id, or
+- the profile's name (case-insensitive; see PRD-0020).
+
+Available agent profiles:
+${formatAvailableProfilesForDescription(availableProfiles)}
+
+Examples:
+- Create a QA subtask: { "agentProfileId": "qa" }
+- Create a task for Architect review: { "agentProfileId": "architect" }`;
+};
+
 export const createTasksToolset = (settings: SettingsData, task: Task, profile: AgentProfile, promptContext?: PromptContext): ToolSet => {
   const approvalManager = new ApprovalManager(task, profile);
+
+  // Best-effort access to the AgentProfileManager in order to improve tool clarity.
+  // This is intentionally defensive to avoid breaking tool creation if internals change.
+  const availableProfiles: AgentProfile[] = (() => {
+    try {
+      const project = task.getProject() as unknown as {
+        agentProfileManager?: { getAllProfiles: () => AgentProfile[] };
+        agentProfilesManager?: { getAllProfiles: () => AgentProfile[] };
+      };
+      const apm = project.agentProfileManager ?? project.agentProfilesManager;
+      return apm?.getAllProfiles?.() ?? [];
+    } catch {
+      // ignore
+    }
+    return [];
+  })();
 
   const listTasksTool = tool({
     description: TASKS_TOOL_DESCRIPTIONS[TASKS_TOOL_LIST_TASKS],
@@ -204,10 +256,18 @@ export const createTasksToolset = (settings: SettingsData, task: Task, profile: 
   const nameProperty = autoGenerateTaskName
     ? z.string().optional().describe('Optional concise name for the new task. If not provided, the task name will be auto-generated from the prompt.')
     : z.string().describe('Concise name for the new task.');
+
+  const agentProfileIdDescription = `Optional agent profile id or profile name to use for the task.
+
+Available agent profiles:
+${formatAvailableProfilesForDescription(availableProfiles)}
+
+Examples: "qa", "architect"`;
+
   const CreateTaskInputSchema = z.object({
     prompt: z.string().describe('The initial prompt for the new task'),
     name: nameProperty,
-    agentProfileId: z.string().optional().describe('Optional agent profile ID to use for the task. Use only when explicitly requested by the user.'),
+    agentProfileId: z.string().optional().describe(agentProfileIdDescription),
     modelId: z.string().optional().describe('Optional model ID to use for the task. Use only when explicitly requested by the user.'),
     execute: z
       .boolean()
@@ -232,7 +292,7 @@ export const createTasksToolset = (settings: SettingsData, task: Task, profile: 
   });
 
   const createTaskTool = tool({
-    description: TASKS_TOOL_DESCRIPTIONS[TASKS_TOOL_CREATE_TASK],
+    description: buildCreateTaskDescription(availableProfiles),
     inputSchema: isSubtask ? CreateTaskInputSchema : CreateTaskWithParentInputSchema,
     execute: async (args, { toolCallId }) => {
       const { prompt, name, agentProfileId, modelId, execute: shouldExecute, executeInBackground } = args;
@@ -255,6 +315,7 @@ export const createTasksToolset = (settings: SettingsData, task: Task, profile: 
         const newTask = await task.getProject().createNewTask({
           parentId: parentTaskId || null,
           name: name || '',
+          ...(agentProfileId ? { agentProfileId } : {}),
         });
         const updates: Partial<TaskData> = {};
 
