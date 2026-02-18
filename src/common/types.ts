@@ -849,6 +849,12 @@ export type TaskData = z.infer<typeof TaskDataSchema>;
 export interface CreateTaskParams {
   parentId?: string | null;
   name?: string;
+  /**
+   * Optional agent profile id (or name; see PRD-0020) to use for the new task.
+   * When provided, task initialization should use the selected profile's model/provider
+   * rather than inheriting them from the parent task.
+   */
+  agentProfileId?: string;
   autoApprove?: boolean;
   activate?: boolean;
   handoff?: boolean;

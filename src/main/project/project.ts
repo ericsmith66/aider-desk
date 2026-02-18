@@ -94,6 +94,8 @@ export class Project {
         reasoningEffort: sourceTask.task.reasoningEffort,
         thinkingTokens: sourceTask.task.thinkingTokens,
         currentMode: sourceTask.task.currentMode,
+        // By default, inherit task-level agent profile/model overrides from the parent task.
+        // If an explicit agent profile is provided in params, we will override these below (PRD-0030).
         agentProfileId: parentTask?.task.agentProfileId,
         provider: parentTask?.task.provider,
         model: parentTask?.task.model,
@@ -114,6 +116,24 @@ export class Project {
         currentMode: 'agent',
         ...normalizedParams,
       };
+    }
+
+    // PRD-0030: If the caller explicitly specifies an agent profile for the new task,
+    // apply that profile's provider/model rather than inheriting task-level overrides
+    // from the parent task.
+    if (params?.agentProfileId) {
+      const requested = params.agentProfileId;
+      const profile = this.agentProfileManager.getProfile(requested);
+
+      if (profile) {
+        initialTaskData.agentProfileId = profile.id;
+        initialTaskData.provider = profile.provider;
+        initialTaskData.model = profile.model;
+      } else {
+        logger.warn(`Agent profile '${requested}' not found. Falling back to inherited task configuration.`);
+        // Preserve the requested value for visibility/debugging.
+        initialTaskData.agentProfileId = requested;
+      }
     }
 
     const projectSettings = this.getProjectSettings();
