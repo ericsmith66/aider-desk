@@ -37,7 +37,12 @@ import { contextBridge, ipcRenderer, webUtils } from 'electron';
 import { ApplicationAPI } from '@common/api';
 import { compareBaseDirs } from '@common/utils';
 
+import { configureEventEmitterMaxListeners } from './event-emitter-config';
+
 import './index.d';
+
+// PRD-0060
+configureEventEmitterMaxListeners();
 
 const api: ApplicationAPI = {
   isOpenLogsDirectorySupported: () => true,
