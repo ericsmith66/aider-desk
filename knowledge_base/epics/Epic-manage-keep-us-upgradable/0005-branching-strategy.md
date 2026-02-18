@@ -4,6 +4,25 @@
 **Created**: 2026-02-18
 **Goal**: Make it easy to (1) stay current with upstream, (2) keep our fork stable, and (3) create clean, atomic PRs back to upstream.
 
+---
+
+## 🚨 Non-Optional Policy
+
+This workflow is the epic. **Following it is not optional.**
+
+If we skip steps (“just fix it quickly on `main`”), we accumulate hidden divergence and make upstream merges harder.
+
+**Hard rules:**
+
+1. **Never implement upstream-worthy fixes directly on our fork `main`.**
+   - Use `main` only for fork stability and fork-only divergence.
+2. **All upstream PR work must happen on a short-lived PR branch** based on `upstream/main` (preferred) or a validated `sync/*` snapshot.
+3. **One PR branch = one PRD / one upstream-worthy change.**
+4. **Do not include `knowledge_base/**` changes in upstream PRs.**
+   - `knowledge_base/**` exists for our fork’s internal process and institutional knowledge.
+
+---
+
 This document is intentionally procedural. If you follow it, you should be able to:
 1. Create/refresh a clean “upstream-based” branch line in our fork
 2. Generate one PR branch per fix/feature (PRD) with minimal, reviewable diffs
@@ -14,6 +33,8 @@ This document is intentionally procedural. If you follow it, you should be able 
 #### Reference docs in this repo
 
 - `knowledge_base/epics/Epic-manage-keep-us-upgradable/0000-epic-overview.md`
+- `knowledge_base/epics/Epic-manage-keep-us-upgradable/0006-atomic-execution-plan.md`
+- `knowledge_base/epics/Epic-manage-keep-us-upgradable/0007-implementation-status.md`
 - `knowledge_base/AIDER_DESK_PR_STRATEGY.md`
 - `knowledge_base/AIDER_DESK_PR_Plan.md`
 - `knowledge_base/MERGE_STRATEGY_COMPARISON.md`
@@ -126,6 +147,25 @@ npm run test
 
 If these checks fail on pure upstream, record that in the epic notes before continuing.
 
+#### 5.1) Copy the epic process docs onto the snapshot branch (recommended)
+
+If you intend to do PRD work starting from a `sync/*` snapshot branch, **copy the epic documents onto that snapshot branch** so the instructions travel with the baseline.
+
+This is an internal-only commit that stays in our fork (it is **not** intended to be upstreamed).
+
+On the snapshot branch:
+
+```bash
+# Bring the epic docs from our fork main onto the snapshot branch
+git checkout origin/main -- knowledge_base/epics/Epic-manage-keep-us-upgradable
+
+git add knowledge_base/epics/Epic-manage-keep-us-upgradable
+git commit -m "docs(epic): sync upgradability process docs onto snapshot"
+```
+
+Alternative (if you prefer to keep the snapshot branch pristine):
+- Use two worktrees: one checked out at `origin/main` for reading `knowledge_base/**`, and one checked out at your `sync/*` / PR branch for coding.
+
 ---
 
 ### 6) How to create clean upstream PR branches (the core workflow)
@@ -144,6 +184,8 @@ Alternative (if you want to base on a validated snapshot):
 ```bash
 git checkout -b fix/<topic> origin/sync/upstream-YYYY-MM-DD
 ```
+
+**Reminder:** do not branch off our fork `main` for upstream PRs.
 
 #### Rule 2: One PR branch = one PRD / one upstream-worthy change
 

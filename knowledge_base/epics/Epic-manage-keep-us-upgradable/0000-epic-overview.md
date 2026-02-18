@@ -46,6 +46,28 @@ Instead of maintaining a permanent fork with merge conflicts, we:
 3. **Selectively reimplement** only features that remain necessary
 4. **Adopt upstream solutions** when they're better than ours
 
+---
+
+## 🚨 Non-Optional Process (Policy)
+
+This epic is a process epic. **Following the process is not optional**.
+
+If we don’t follow the workflow, we recreate the same failure modes that caused this epic:
+long-lived divergence, unreviewable diffs, and painful upstream merges.
+
+**Rules:**
+
+1. **Do not implement fixes directly on our fork `main`.**
+   - Our fork `main` exists for stability and fork-specific divergence.
+   - All upstream-worthy work must be done on a short-lived PR branch.
+2. **PR branches must be based on `upstream/main` (preferred) or a validated `sync/*` snapshot.**
+3. **A PR branch must be atomic:** one PRD / one upstream-worthy change.
+4. **Keep fork-only documentation out of upstream PRs.**
+   - `knowledge_base/**` is for *our fork*.
+   - Upstream PRs should not include `knowledge_base/**` changes.
+5. **When building on a snapshot, ensure the epic docs are present on that snapshot branch** so the workflow instructions travel with the baseline.
+   - See: `knowledge_base/epics/Epic-manage-keep-us-upgradable/0005-branching-strategy.md`.
+
 ### Why PRD-First Beats Other Approaches
 
 | Approach | Merge Strategy | Knowledge Capture | Future Merge Cost | Upstream Bias |
@@ -181,7 +203,8 @@ Well-documented PRDs can be shared with upstream maintainers as feature proposal
 ## 🔗 Related Documents
 
 - [PRD Template](../../prds/0000-PRD-TEMPLATE.md)
-- [PRD Strategy (Original)](./strategey.md)
+- [Atomic Execution Plan](./0006-atomic-execution-plan.md)
+- [Implementation Status (Execution Log)](./0007-implementation-status.md)
 - [Merge Strategy Comparison](../../MERGE_STRATEGY_COMPARISON.md)
 - [Original PR Strategy](../../AIDER_DESK_PR_STRATEGY.md)
 - [Original PR Plan](../../AIDER_DESK_PR_Plan.md)
