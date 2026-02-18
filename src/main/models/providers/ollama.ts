@@ -69,7 +69,9 @@ export const getOllamaAiderMapping = (provider: ProviderProfile, modelId: string
   }
 
   return {
-    modelName: `ollama_chat/${modelId}`,
+    // PRD-0050: Aider CLI expects Ollama models in the format `ollama/<model>`.
+    // Using `ollama_chat/<model>` causes Aider "Model not found" errors.
+    modelName: `ollama/${modelId}`,
     environmentVariables: envVars,
   };
 };
