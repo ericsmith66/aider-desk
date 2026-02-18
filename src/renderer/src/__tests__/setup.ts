@@ -1,7 +1,52 @@
 import '@testing-library/jest-dom';
-import { vi } from 'vitest';
+import { beforeEach, vi } from 'vitest';
 
 import { globalMockApi } from './mocks/api';
+
+// PRD-0070: Provide `localStorage` + `sessionStorage` in the JSDOM test environment.
+// JSDOM omits Web Storage by default; many renderer components rely on it.
+class StorageMock implements Storage {
+  private store: Map<string, string> = new Map();
+
+  get length(): number {
+    return this.store.size;
+  }
+
+  clear(): void {
+    this.store.clear();
+  }
+
+  getItem(key: string): string | null {
+    return this.store.get(key) ?? null;
+  }
+
+  setItem(key: string, value: string): void {
+    this.store.set(key, String(value));
+  }
+
+  removeItem(key: string): void {
+    this.store.delete(key);
+  }
+
+  key(index: number): string | null {
+    const keys = Array.from(this.store.keys());
+    return keys[index] ?? null;
+  }
+}
+
+const localStorageMock = new StorageMock();
+const sessionStorageMock = new StorageMock();
+
+Object.defineProperty(window, 'localStorage', { value: localStorageMock, writable: true });
+Object.defineProperty(window, 'sessionStorage', { value: sessionStorageMock, writable: true });
+Object.defineProperty(globalThis, 'localStorage', { value: localStorageMock, writable: true });
+Object.defineProperty(globalThis, 'sessionStorage', { value: sessionStorageMock, writable: true });
+
+// Test isolation: each test starts with empty storage.
+beforeEach(() => {
+  localStorageMock.clear();
+  sessionStorageMock.clear();
+});
 
 // Mock focus-trap-react
 vi.mock('focus-trap-react', () => ({
