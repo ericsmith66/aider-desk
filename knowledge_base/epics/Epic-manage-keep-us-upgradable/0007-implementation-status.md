@@ -57,6 +57,19 @@ For each PRD you execute:
 Notes:
 - `npm ci` succeeds but reports an engine mismatch warning (`node v25.2.1`; package requires `<25`).
 
+### Process note (plan revision)
+
+- We observed a workflow drift where PRD branches (PRD-0040 → PRD-0070) were initially created off fork `main`.
+  - This violates the non-optional rule in `0006-atomic-execution-plan.md` that upstream-worthy fixes must be based on `upstream/main` (or a validated `sync/*` snapshot).
+- Corrective action:
+  - Adopt a two-worktree workflow (single source of truth):
+    - **Docs worktree**: fork `main` (this file + all `knowledge_base/**`)
+    - **Code worktree**: `upstream/main`, `sync/*`, PRD branches, and `proof/*` stacking
+  - Archive the existing `main`-based PRD-0040..0070 branches, then recreate clean canonical PRD branches from `upstream/main`.
+  - Build and validate `proof/stack-2026-02-18` by merging PRD branches (including PRD-0010) on top of `upstream/main`.
+
+This note is here so future cycles can audit what happened and why we changed the workflow.
+
 ---
 
 ## PRD execution status (one row per PRD)
