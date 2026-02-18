@@ -25,6 +25,29 @@ import logger from '@/logger';
 import { isAbortError } from '@/utils/errors';
 import { Task } from '@/task';
 
+// PRD-0040: Task tool clarity.
+// These are the standard profile *names* we expect agents to use.
+// Note: actual profiles are configurable by users; this list is designed to reduce
+// hallucinations by providing common, well-known options and examples.
+const CREATE_TASK_PROFILE_HELP = `Available standard profiles:
+- "qa": Quality assurance and testing expert — use for code reviews, test validation, quality checks
+- "architect": System design and planning specialist — use for architectural decisions, refactoring plans
+- "debug": Debugging and troubleshooting expert — use for investigating bugs, error analysis
+
+You can reference profiles by name (case-insensitive) or by UUID.
+If no agentProfileId is specified, the new task inherits the parent task's model/profile settings.
+
+Examples:
+- QA review: { "agentProfileId": "qa", "prompt": "Review code quality" }
+- Architecture planning: { "agentProfileId": "architect", "prompt": "Design system architecture" }
+- Bug investigation: { "agentProfileId": "debug", "prompt": "Investigate error logs" }`;
+
+const buildCreateTaskToolDescription = (): string => {
+  return `${TASKS_TOOL_DESCRIPTIONS[TASKS_TOOL_CREATE_TASK]}
+
+${CREATE_TASK_PROFILE_HELP}`;
+};
+
 export const createTasksToolset = (settings: SettingsData, task: Task, profile: AgentProfile, promptContext?: PromptContext): ToolSet => {
   const approvalManager = new ApprovalManager(task, profile);
 
@@ -207,7 +230,12 @@ export const createTasksToolset = (settings: SettingsData, task: Task, profile: 
   const CreateTaskInputSchema = z.object({
     prompt: z.string().describe('The initial prompt for the new task'),
     name: nameProperty,
-    agentProfileId: z.string().optional().describe('Optional agent profile ID to use for the task. Use only when explicitly requested by the user.'),
+    agentProfileId: z
+      .string()
+      .optional()
+      .describe(
+        'Optional agent profile name (e.g., "qa", "architect", "debug") or UUID. Names are case-insensitive. See tool description for guidance and examples.',
+      ),
     modelId: z.string().optional().describe('Optional model ID to use for the task. Use only when explicitly requested by the user.'),
     execute: z
       .boolean()
@@ -232,7 +260,7 @@ export const createTasksToolset = (settings: SettingsData, task: Task, profile: 
   });
 
   const createTaskTool = tool({
-    description: TASKS_TOOL_DESCRIPTIONS[TASKS_TOOL_CREATE_TASK],
+    description: buildCreateTaskToolDescription(),
     inputSchema: isSubtask ? CreateTaskInputSchema : CreateTaskWithParentInputSchema,
     execute: async (args, { toolCallId }) => {
       const { prompt, name, agentProfileId, modelId, execute: shouldExecute, executeInBackground } = args;
@@ -255,6 +283,7 @@ export const createTasksToolset = (settings: SettingsData, task: Task, profile: 
         const newTask = await task.getProject().createNewTask({
           parentId: parentTaskId || null,
           name: name || '',
+          ...(agentProfileId ? { agentProfileId } : {}),
         });
         const updates: Partial<TaskData> = {};
 
