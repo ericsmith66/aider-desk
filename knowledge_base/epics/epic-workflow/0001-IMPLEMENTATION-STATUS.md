@@ -2,7 +2,7 @@
 
 **Epic**: WF — Implement the Agent-Forge Workflow Framework
 **Started**: 2026-02-21
-**Last Updated**: 2026-02-21
+**Last Updated**: 2026-02-23
 
 ---
 
@@ -10,10 +10,10 @@
 
 | # | PRD | Status | QA Score | Branch | Completed | Notes |
 |---|-----|--------|----------|--------|-----------|-------|
-| WF-01 | Generalize Base Rules & Fix Commit Policy | Not Started | — | — | — | Blocking — must complete first |
-| WF-02 | Create Human Command Files | Not Started | — | — | — | Blocked by WF-01 |
-| WF-03 | Update implement-prd and Legacy Commands | Not Started | — | — | — | Blocked by WF-01 |
-| WF-04 | Update Agent System Prompts | Not Started | — | — | — | Blocked by WF-01 |
+| WF-01 | Generalize Base Rules & Fix Commit Policy | Completed | — | — | 2026-02-23 | All 8 tasks completed successfully |
+| WF-02 | Create Human Command Files | Not Started | — | — | — | Unblocked - ready to start |
+| WF-03 | Update implement-prd and Legacy Commands | Not Started | — | — | — | Unblocked - ready to start |
+| WF-04 | Update Agent System Prompts | Not Started | — | — | — | Unblocked - ready to start |
 | WF-05 | Validate & Align Documentation | Not Started | — | — | — | Blocked by WF-01–04 |
 
 ---
